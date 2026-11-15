@@ -137,6 +137,7 @@ class App {
   void brew_adjust(int dir, bool half);  // Brew +/- (half: 0.5 snap, long-press)
   void boiler_adjust(int dir);           // Boiler level +/-
   void steam_set_enabled(bool on);       // steam boiler on/off switch
+  void steam_toggle();                  // Home steam row: flip on/off (connected only)
   void brightness_adjust(int dir);       // Display brightness +/-
   void cycle_screen_timeout();           // Device "Screen dim": Off / 1 / 5 / 15 / 30 min
   void cycle_screensaver_style();        // Device "Idle screen": Lion / Apollo / Alternate / Dim / Off

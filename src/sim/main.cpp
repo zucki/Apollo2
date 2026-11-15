@@ -238,6 +238,12 @@ int main() {
   machine.set_temps(78.0f, 96.0f);
   ok &= r({800, 480}, "renders/home_heating_800x480.png");
   ok &= r({320, 240}, "renders/home_heating_320x240.png");
+  // Local steam-home variant: both boilers ready, then steam switched off.
+  machine.set_temps(93.0f, 130.0f);
+  ok &= r({800, 480}, "renders/home_ready_800x480.png");
+  machine.set_steam_enabled(false);
+  ok &= r({800, 480}, "renders/home_steam_off_800x480.png");
+  machine.set_steam_enabled(true);
   machine.set_temps(93.0f, 123.0f);
   // Unwired mode (paddle harness not in use): the shot button arms the weight-
   // stream detector ("Detect") instead of the auto-stop, pill shows Ready.

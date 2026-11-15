@@ -484,6 +484,11 @@ void on_steam_switch(lv_event_t* e) {
   auto* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
   app->steam_set_enabled(lv_obj_has_state(sw, LV_STATE_CHECKED));
 }
+// Home's steam pill / row (local steam-home variant): a tap toggles, through
+// the same confirm-from-machine path as the Settings switch.
+void on_steam_row(lv_event_t* e) {
+  static_cast<ui::App*>(lv_event_get_user_data(e))->steam_toggle();
+}
 void on_brightness_minus(lv_event_t* e) {
   static_cast<ui::App*>(lv_event_get_user_data(e))->brightness_adjust(-1);
 }
@@ -1350,6 +1355,11 @@ void App::build(core::IMachine& machine, core::IProvisioner& provisioner,
     lv_obj_add_event_cb(home_.boiler_minus, on_boiler_minus, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(home_.boiler_plus, on_boiler_plus, LV_EVENT_CLICKED, this);
   }
+  // Home steam pill + row (boiler-row layouts): either one toggles.
+  if (home_.steam_btn != nullptr) {
+    lv_obj_add_event_cb(home_.steam_btn, on_steam_row, LV_EVENT_CLICKED, this);
+    lv_obj_add_event_cb(home_.steam_row, on_steam_row, LV_EVENT_CLICKED, this);
+  }
   // Home weight-target steppers (scale panel) reuse the Settings target handlers.
   if (home_.target_minus != nullptr) {
     lv_obj_add_event_cb(home_.target_minus, on_target_minus, LV_EVENT_CLICKED, this);
@@ -1878,8 +1888,24 @@ void App::steam_set_enabled(bool on) {
 // screens; no-op on compact, where Home has no steppers and update_home owns the
 // labels). Same dirty-aware source as the Settings labels, so an edit shows on
 // both tabs and the deferred commit still applies on tab exit.
+void App::steam_toggle() {
+  if (machine_ == nullptr || machine_->snapshot().link != core::Link::Connected) return;
+  steam_set_enabled(!settings_.steam_enabled);
+}
+
 void App::sync_home_setpoints(bool connected) {
-  if (home_.brew_minus == nullptr) return;  // compact: no Home steppers
+  // Home steam pill + row (boiler-row layouts): mirror the dirty-aware state
+  // the Settings switch shows — styled like the shot pill: accent ring + text
+  // when on, neutral ring when off — and lock both while the Micra is away.
+  if (home_.steam_btn != nullptr) {
+    const bool on = settings_.steam_enabled;
+    ui::set_text(home_.steam_btn_label, on ? "Steam on" : "Steam off");
+    ui::set_border_color(home_.steam_btn, on ? ui::theme::accent() : ui::theme::scrollbar());
+    ui::set_text_color(home_.steam_btn_label, on ? ui::theme::accent() : ui::theme::text());
+    set_clickable(home_.steam_btn, connected);
+    set_clickable(home_.steam_row, connected);
+  }
+  if (home_.brew_minus == nullptr) return;  // compact / boiler rows: no Home steppers
   const bool steam = settings_.steam_enabled;
 
   const bool f = display_->use_fahrenheit();

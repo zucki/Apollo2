@@ -51,6 +51,22 @@ struct HomeWidgets {
   lv_obj_t* brew_plus = nullptr;
   lv_obj_t* boiler_minus = nullptr;
   lv_obj_t* boiler_plus = nullptr;
+  // Boiler rows (large layouts, local steam-home variant): per boiler a
+  // readiness label after the caption ("Ready" / the target while heating, a
+  // dot beside it while heating) and a progress line to the set point; the
+  // steam row carries the "Steam on/off" pill and toggles as a whole. Null on
+  // compact.
+  lv_obj_t* brew_state = nullptr;
+  lv_obj_t* brew_state_dot = nullptr;
+  lv_obj_t* brew_bar = nullptr;
+  lv_obj_t* boiler_state = nullptr;
+  lv_obj_t* boiler_state_dot = nullptr;
+  lv_obj_t* boiler_bar = nullptr;
+  lv_obj_t* steam_row = nullptr;
+  lv_obj_t* steam_btn = nullptr;        // "Steam on" / "Steam off" pill
+  lv_obj_t* steam_btn_label = nullptr;
+  bool brew_heating = false;    // per-boiler core::boiler_heating hysteresis
+  bool boiler_heating = false;
   lv_obj_t* power_btn = nullptr;
   // Power-toggle pending window: set by App::toggle_power. The Micra answers
   // mode reads stale for a beat after a command and the poll is 1 s, so the

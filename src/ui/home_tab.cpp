@@ -958,6 +958,127 @@ lv_obj_t* make_panel_column(lv_obj_t* body, const char* caption, const lv_font_t
   return col;
 }
 
+// One boiler row of the MICRA card (local steam-home variant): the caption with
+// the readiness right after it (a dot + the target while heating, "Ready" once
+// there) over the live temperature; on the right — steam only, when out_btn is
+// given — an outlined "Steam on/off" pill in the Auto shot pill's style; a thin
+// progress line to the set point along the bottom. Rows flex-grow so two of
+// them share the card body. Returns the row.
+lv_obj_t* make_boiler_row(lv_obj_t* parent, const char* caption, const lv_font_t* cap_font,
+                          const lv_font_t* val_font, const lv_font_t* state_font,
+                          int pill_h, const lv_font_t* pill_font, lv_obj_t** out_val,
+                          lv_obj_t** out_dot, lv_obj_t** out_state, lv_obj_t** out_bar,
+                          lv_obj_t** out_btn, lv_obj_t** out_btn_label) {
+  auto box = [](lv_obj_t* par) {
+    lv_obj_t* o = lv_obj_create(par);
+    lv_obj_remove_style_all(o);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);  // taps reach the row
+    return o;
+  };
+  lv_obj_t* row = lv_obj_create(parent);
+  lv_obj_remove_style_all(row);
+  lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_width(row, lv_pct(100));
+  lv_obj_set_height(row, 0);
+  lv_obj_set_flex_grow(row, 1);
+  lv_obj_set_flex_flow(row, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  lv_obj_set_style_pad_row(row, ui::dp(4), 0);
+
+  lv_obj_t* line = box(row);
+  lv_obj_set_size(line, lv_pct(100), LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(line, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(line, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER,
+                        LV_FLEX_ALIGN_CENTER);
+
+  lv_obj_t* left = box(line);
+  lv_obj_set_size(left, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(left, LV_FLEX_FLOW_COLUMN);
+
+  lv_obj_t* capline = box(left);
+  lv_obj_set_size(capline, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(capline, LV_FLEX_FLOW_ROW);
+  lv_obj_set_flex_align(capline, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+  lv_obj_set_style_pad_column(capline, ui::dp(8), 0);
+  lv_obj_t* cap = lv_label_create(capline);
+  lv_label_set_text(cap, caption);
+  lv_obj_set_style_text_color(cap, lv_color_hex(ui::theme::muted()), 0);
+  lv_obj_set_style_text_font(cap, cap_font, 0);
+  lv_obj_set_style_margin_right(cap, ui::dp(4), 0);
+  lv_obj_t* dot = box(capline);
+  lv_obj_set_size(dot, ui::dp(9), ui::dp(9));
+  lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(dot, lv_color_hex(ui::theme::warn()), 0);
+  lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+  *out_dot = dot;
+  lv_obj_t* st = lv_label_create(capline);
+  lv_label_set_text(st, "");
+  lv_obj_set_style_text_font(st, state_font, 0);
+  lv_obj_set_style_text_color(st, lv_color_hex(ui::theme::muted()), 0);
+  *out_state = st;
+
+  lv_obj_t* val = lv_label_create(left);
+  lv_obj_set_style_text_color(val, lv_color_hex(ui::theme::text()), 0);
+  lv_obj_set_style_text_font(val, val_font, 0);
+  *out_val = val;
+
+  if (out_btn != nullptr) {
+    // Styled exactly like the scale card's shot pill (build_scale_panel).
+    lv_obj_t* btn = ui::make_button(line);
+    lv_obj_set_size(btn, LV_SIZE_CONTENT, pill_h);
+    lv_obj_set_style_pad_hor(btn, ui::dp(14), 0);
+    lv_obj_set_style_radius(btn, pill_h / 2, 0);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(ui::theme::card()), 0);
+    lv_obj_set_style_border_width(btn, ui::dp(2), 0);
+    lv_obj_set_style_border_color(btn, lv_color_hex(ui::theme::scrollbar()), 0);
+    lv_obj_set_style_opa(btn, LV_OPA_40, LV_STATE_DISABLED);
+    lv_obj_t* lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, "Steam off");
+    lv_obj_set_style_text_color(lbl, lv_color_hex(ui::theme::text()), 0);
+    lv_obj_set_style_text_font(lbl, pill_font, 0);
+    lv_obj_center(lbl);
+    *out_btn = btn;
+    *out_btn_label = lbl;
+  }
+
+  lv_obj_t* bar = lv_bar_create(row);
+  lv_obj_remove_style_all(bar);
+  lv_obj_remove_flag(bar, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_size(bar, lv_pct(100), ui::dp(4));
+  lv_bar_set_range(bar, 0, 100);
+  lv_obj_set_style_radius(bar, ui::dp(2), LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_MAIN);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(ui::theme::rail()), LV_PART_MAIN);
+  lv_obj_set_style_radius(bar, ui::dp(2), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(ui::theme::warn()), LV_PART_INDICATOR);
+  *out_bar = bar;
+  return row;
+}
+
+// The MICRA card's two boiler rows in a growing column (replaces the BREW /
+// STEAM stepper columns; the set points live in Settings > Micra > Controls).
+void build_boiler_rows(lv_obj_t* card, const lv_font_t* cap_font, const lv_font_t* val_font,
+                       const lv_font_t* state_font, int pill_h, const lv_font_t* pill_font,
+                       int gap, ui::HomeWidgets& out) {
+  lv_obj_t* rows = lv_obj_create(card);
+  lv_obj_remove_style_all(rows);
+  lv_obj_remove_flag(rows, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_width(rows, lv_pct(100));
+  lv_obj_set_flex_grow(rows, 1);
+  lv_obj_set_flex_flow(rows, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_row(rows, gap, 0);
+  make_boiler_row(rows, "BREW", cap_font, val_font, state_font, pill_h, pill_font,
+                  &out.brew_value, &out.brew_state_dot, &out.brew_state, &out.brew_bar,
+                  nullptr, nullptr);
+  out.steam_row = make_boiler_row(rows, "STEAM", cap_font, val_font, state_font, pill_h,
+                                  pill_font, &out.boiler_value, &out.boiler_state_dot,
+                                  &out.boiler_state, &out.boiler_bar, &out.steam_btn,
+                                  &out.steam_btn_label);
+}
+
 // A small, muted sub-label (set point / target shown under a value). Returns it.
 lv_obj_t* add_sub_label(lv_obj_t* parent, const lv_font_t* font) {
   lv_obj_t* l = lv_label_create(parent);
@@ -1033,19 +1154,10 @@ void build_micra_panel(lv_obj_t* parent, const lv_font_t* cap_font,
   lv_obj_t* card = make_panel_card(parent, pad);
   make_panel_header(card, "MICRA", cap_font, status_font, &out.micra_status_dot,
                     &out.micra_status_label, &out.micra_timer_label);
-  lv_obj_t* body = make_panel_body(card);
-  lv_obj_t* bcol = make_panel_column(body, "BREW", cap_font, val_font, &out.brew_value);
-  make_stepper_group(bcol, btn_size, symbol_font, set_font, &out.brew_set,
-                     &out.brew_minus, &out.brew_plus);
-  lv_obj_t* scol = make_panel_column(body, "STEAM", cap_font, val_font, &out.boiler_value);
-  make_stepper_group(scol, btn_size, symbol_font, set_font, &out.boiler_set,
-                     &out.boiler_minus, &out.boiler_plus);
-  // Center the clusters in the body so the card's slack splits above and below
-  // them — breathing room against the header AND the action button.
-  lv_obj_set_flex_align(bcol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
-  lv_obj_set_flex_align(scol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                        LV_FLEX_ALIGN_CENTER);
+  // Local steam-home variant: two boiler rows (temperature, readiness, the
+  // steam switch) instead of the BREW / STEAM stepper columns.
+  (void)symbol_font;
+  build_boiler_rows(card, cap_font, val_font, cap_font, btn_size, set_font, ui::dp(4), out);
   build_micra_actions(card, action_h, action_font, pad, out);
 }
 
@@ -1572,6 +1684,10 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
   // flow_chart / scale_* pointers (LoadProhibited).
   out.brew_minus = out.brew_plus = out.boiler_minus = out.boiler_plus = nullptr;
   out.brew_set = out.boiler_set = nullptr;
+  out.brew_state = out.brew_state_dot = out.brew_bar = nullptr;
+  out.boiler_state = out.boiler_state_dot = out.boiler_bar = nullptr;
+  out.steam_row = out.steam_btn = out.steam_btn_label = nullptr;
+  out.brew_heating = out.boiler_heating = false;
   out.scale_weight = out.scale_target = nullptr;
   out.tare_btn = out.tare_label = nullptr;
   out.flush_btn = out.flush_label = nullptr;  // large layouts only
@@ -1722,23 +1838,10 @@ void build_home_tab(lv_obj_t* parent, const ScreenProfile& screen, bool scale_en
     lv_obj_t* card = make_panel_card(row, card_pad);
     make_panel_header(card, "MICRA", hero_cap, panel_status, &out.micra_status_dot,
                       &out.micra_status_label, &out.micra_timer_label);
-    lv_obj_t* body = make_panel_body(card);
-    // BREW / STEAM, each: caption -> big live value -> [-] set [+], centered in the
-    // tall card. The set label is widened for the larger set font.
-    lv_obj_t* bcol = make_panel_column(body, "BREW", hero_cap, hero_val, &out.brew_value);
-    lv_obj_set_flex_align(bcol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(bcol, ui::dp(xl ? 18 : 12), 0);
-    make_stepper_group(bcol, hero_btn, hero_sym, hero_set, &out.brew_set,
-                       &out.brew_minus, &out.brew_plus);
-    lv_obj_set_width(out.brew_set, ui::dp(xl ? 96 : 78));
-    lv_obj_t* scol = make_panel_column(body, "STEAM", hero_cap, hero_val, &out.boiler_value);
-    lv_obj_set_flex_align(scol, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(scol, ui::dp(xl ? 18 : 12), 0);
-    make_stepper_group(scol, hero_btn, hero_sym, hero_set, &out.boiler_set,
-                       &out.boiler_minus, &out.boiler_plus);
-    lv_obj_set_width(out.boiler_set, ui::dp(xl ? 96 : 78));
+    // Local steam-home variant: the boiler rows at hero size.
+    (void)hero_sym;
+    build_boiler_rows(card, hero_cap, hero_val, hero_cap, hero_btn, hero_set,
+                      ui::dp(xl ? 24 : 16), out);
 
     build_micra_actions(parent, btn_h, btn_font, gap, out);
     return;
@@ -1920,6 +2023,38 @@ static void set_bench_legend_hidden(HomeWidgets& w, bool hidden) {
   update_flow_legend(w);
 }
 
+// One boiler row's readiness + progress line (see make_boiler_row). `heating`
+// carries core::boiler_heating's hysteresis between calls.
+static void update_boiler_row(lv_obj_t* dot, lv_obj_t* st, lv_obj_t* bar, bool shown, bool& heating,
+                       float temp_c, float target_c, bool fahrenheit) {
+  if (!shown || target_c <= 0.0f) {
+    heating = false;
+    lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    ui::set_text(st, "");
+    lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+    return;
+  }
+  heating = core::boiler_heating(temp_c, target_c, heating);
+  int pct = static_cast<int>(temp_c / target_c * 100.0f);
+  pct = pct < 0 ? 0 : pct > 100 ? 100 : pct;
+  if (!heating) pct = 100;  // within the ready band: a full line, not 98 %
+  lv_bar_set_value(bar, pct, LV_ANIM_OFF);
+  lv_obj_set_style_bg_color(bar, lv_color_hex(heating ? ui::theme::warn() : ui::theme::ok()),
+                            LV_PART_INDICATOR);
+  if (heating) {
+    char b[16];
+    std::snprintf(b, sizeof(b), "%.0f°",
+                  static_cast<double>(ui::temp_disp(target_c, fahrenheit)));
+    lv_obj_remove_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    ui::set_text(st, b);
+    ui::set_text_color(st, ui::theme::muted());
+  } else {
+    lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+    ui::set_text(st, LV_SYMBOL_OK " Ready");
+    ui::set_text_color(st, ui::theme::ok());
+  }
+}
+
 void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
                  const core::BatteryState& battery, const core::WallTime& clock,
                  bool clock_24h, bool fahrenheit, const core::ScaleSnapshot& scale,
@@ -2044,6 +2179,20 @@ void update_home(HomeWidgets& w, const core::MachineSnapshot& state,
     if (w.brew_set != nullptr) ui::set_text(w.brew_set, "--");
     ui::set_text(w.boiler_value, "--");
     if (w.boiler_set != nullptr) ui::set_text(w.boiler_set, "--");
+  }
+
+  // Boiler rows (large layouts): readiness per boiler + the progress line.
+  // Shown only while the machine is on — in standby both boilers cool and a
+  // "heating" mark would mislead; the steam row also needs steam enabled.
+  if (w.brew_bar != nullptr) {
+    update_boiler_row(w.brew_state_dot, w.brew_state, w.brew_bar, connected && on,
+                      w.brew_heating, state.brew_temp_c, state.brew_target_c, fahrenheit);
+    const bool steam_on = connected && state.steam_enabled;
+    update_boiler_row(w.boiler_state_dot, w.boiler_state, w.boiler_bar, steam_on && on,
+                      w.boiler_heating, state.boiler_temp_c, state.boiler_target_c,
+                      fahrenheit);
+    ui::set_text_color(w.boiler_value,
+                       connected && !state.steam_enabled ? ui::theme::muted() : ui::theme::text());
   }
 
   // Scale readout (scale-aware layout only). Frozen during shot review exactly
